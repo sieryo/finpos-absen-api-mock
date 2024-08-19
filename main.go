@@ -2,12 +2,9 @@ package main
 
 import (
 	"finpos-absen-api/config"
-	"finpos-absen-api/internal/controllers"
-	"finpos-absen-api/internal/middlewares"
-	"finpos-absen-api/internal/models"
+	"finpos-absen-api/internal/routes"
 	"flag"
 	"fmt"
-	"net/http"
 	"os"
 
 	migrations "finpos-absen-api/migrate"
@@ -19,8 +16,10 @@ func init() {
 	config.InitDatabase()
 }
 
+var r *gin.Engine
+
 func main() {
-	r := gin.Default()
+	r = gin.Default()
 
 	migrate := flag.Bool("migrate", false, "Run migrations")
 	flag.Parse()
@@ -32,31 +31,9 @@ func main() {
 		os.Exit(0)
 	}
 
-	r.LoadHTMLGlob("templates/*")
-	r.GET("/", func(c *gin.Context) {
-		c.HTML(http.StatusOK, "index.html", gin.H{
-			"title": "Todo List",
-		})
-	})
-
-	authRoutes := r.Group("/auth")
-	{
-		authRoutes.POST("/signup", controllers.CreateUser)
-		authRoutes.POST("/login", controllers.Login)
-	}
-
-	attendanceRoutes := r.Group("/attendance", middlewares.CheckAuth)
-	{
-		attendanceRoutes.POST("/clockin", controllers.CreateAttendance)
-		attendanceRoutes.POST("/update_clockin", controllers.UpdateClockInAttendance)
-		attendanceRoutes.POST("/clockout", controllers.UpdateClockOutAttendance)
-	}
-
-	r.GET("/profile", middlewares.CheckAuth, controllers.GetUserProfile)
+	routes.AuthRoutes(r)
+	routes.AttendanceRoutes(r)
+	routes.ProfileRoutes(r)
 
 	r.Run()
-}
-
-func testUser(user models.Users) {
-	config.DB.Create(&user)
 }
