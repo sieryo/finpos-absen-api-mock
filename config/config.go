@@ -1,9 +1,11 @@
 package config
 
 import (
+	"fmt"
 	"log"
 	"time"
 
+	"github.com/joho/godotenv"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 )
@@ -21,7 +23,13 @@ type Todo struct {
 var DB *gorm.DB
 
 func InitDatabase() {
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
+
 	dsn := "root:@tcp(127.0.0.1:3306)/"
+	dbName := "finpos_absen"
 
 	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
 
@@ -29,17 +37,13 @@ func InitDatabase() {
 		panic("failed to connect database")
 	}
 
-	db.Exec("CREATE DATABASE IF NOT EXISTS todo_app")
+	query := fmt.Sprintf("CREATE DATABASE IF NOT EXISTS %s", dbName)
 
-	dsn = "root:@tcp(127.0.0.1:3306)/todo_app?parseTime=true"
+	db.Exec(query)
+
+	dsn = fmt.Sprintf("root:@tcp(127.0.0.1:3306)/%s?charset=utf8mb4&parseTime=true&loc=Local", dbName)
 	DB, err = gorm.Open(mysql.Open(dsn), &gorm.Config{})
 	if err != nil {
 		log.Fatalf("Failed to connect to the todo_app database: %v", err)
 	}
-
-	createTodoTable()
-}
-
-func createTodoTable() {
-	DB.AutoMigrate(&Todo{})
 }

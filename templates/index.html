@@ -4,20 +4,33 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Todo List</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
+    <style>
+        .edit-mode input, .edit-mode textarea {
+            flex: 1;
+        }
+    </style>
 </head>
-<body>
-    <h1>Todo List</h1>
+<body class="bg-gray-100 p-8">
+    <div class="container mx-auto">
+        <h1 class="text-4xl font-bold text-center mb-8">Todo List</h1>
 
-    <form id="todoForm">
-        <label for="title">Title:</label>
-        <input type="text" id="title" name="title" required><br>
-        <label for="description">Description:</label>
-        <textarea id="description" name="description"></textarea><br>
-        <button type="submit">Add Todo</button>
-    </form>
+        <form id="todoForm" class="mb-6 bg-white p-6 rounded shadow-md">
+            <div class="mb-4">
+                <label for="title" class="block text-gray-700">Title:</label>
+                <input type="text" id="title" name="title" class="w-full px-3 py-2 border rounded" required>
+            </div>
+            <div class="mb-4">
+                <label for="description" class="block text-gray-700">Description:</label>
+                <textarea id="description" name="description" class="w-full px-3 py-2 border rounded"></textarea>
+            </div>
+            <button type="submit" class="w-full bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600">Add Todo</button>
+        </form>
 
-    <h2>Todos</h2>
-    <ul id="todoList"></ul>
+        <h2 class="text-2xl font-semibold mb-4">Todos</h2>
+        <ul id="todoList" class="space-y-4"></ul>
+    </div>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
@@ -58,8 +71,116 @@
         function addTodoToList(todo) {
             const todoList = document.getElementById('todoList');
             const li = document.createElement('li');
-            li.textContent = `${todo.title}: ${todo.description}`;
+            li.className = 'bg-white p-4 rounded shadow-md flex justify-between items-center animate__animated animate__fadeIn';
+            li.dataset.id = todo.id;
+
+            const content = document.createElement('div');
+            content.className = 'flex flex-col w-full';
+
+            const title = document.createElement('span');
+            title.textContent = todo.title;
+            title.className = 'todo-title font-semibold text-lg';
+
+            const description = document.createElement('span');
+            description.textContent = todo.description;
+            description.className = 'todo-description text-gray-600';
+
+            content.appendChild(title);
+            content.appendChild(description);
+
+            const actions = document.createElement('div');
+            actions.className = 'todo-actions flex space-x-2';
+
+            const editButton = document.createElement('button');
+            editButton.className = 'bg-yellow-500 text-white py-1 px-2 rounded hover:bg-yellow-600';
+            editButton.textContent = 'Edit';
+            editButton.onclick = () => enterEditMode(li, todo);
+
+            const deleteButton = document.createElement('button');
+            deleteButton.className = 'bg-red-500 text-white py-1 px-2 rounded hover:bg-red-600';
+            deleteButton.textContent = 'Delete';
+            deleteButton.onclick = () => deleteTodo(todo.id, li);
+
+            actions.appendChild(editButton);
+            actions.appendChild(deleteButton);
+
+            li.appendChild(content);
+            li.appendChild(actions);
             todoList.appendChild(li);
+        }
+
+        function enterEditMode(li, todo) {
+            const content = li.querySelector('div:first-child');
+            const titleSpan = content.querySelector('.todo-title');
+            const descriptionSpan = content.querySelector('.todo-description');
+            const actions = li.querySelector('.todo-actions');
+
+            titleSpan.style.display = 'none';
+            descriptionSpan.style.display = 'none';
+
+            const titleInput = document.createElement('input');
+            titleInput.type = 'text';
+            titleInput.value = todo.title;
+            titleInput.className = 'w-full px-3 py-2 border rounded';
+
+            const descriptionInput = document.createElement('textarea');
+            descriptionInput.value = todo.description;
+            descriptionInput.className = 'w-full px-3 py-2 border rounded';
+
+            content.insertBefore(titleInput, titleSpan);
+            content.insertBefore(descriptionInput, descriptionSpan);
+
+            const saveButton = document.createElement('button');
+            saveButton.className = 'bg-green-500 text-white py-1 px-2 rounded hover:bg-green-600';
+            saveButton.textContent = 'Save';
+            saveButton.onclick = () => saveEdit(todo.id, titleInput.value, descriptionInput.value, li);
+
+            const cancelButton = document.createElement('button');
+            cancelButton.className = 'bg-gray-500 text-white py-1 px-2 rounded hover:bg-gray-600';
+            cancelButton.textContent = 'Cancel';
+            cancelButton.onclick = () => cancelEdit(todo, li);
+
+            actions.innerHTML = '';
+            actions.appendChild(saveButton);
+            actions.appendChild(cancelButton);
+        }
+
+        async function saveEdit(id, newTitle, newDescription, li) {
+            const response = await fetch(`/todos/${id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ title: newTitle, description: newDescription })
+            });
+
+            if (response.ok) {
+                const updatedTodo = await response.json();
+                li.innerHTML = '';
+                li.className = 'bg-white p-4 rounded shadow-md flex justify-between items-center animate__animated animate__fadeIn';
+                addTodoToList(updatedTodo.data);
+            } else {
+                console.error('Failed to update todo');
+            }
+        }
+
+        function cancelEdit(todo, li) {
+            li.innerHTML = '';
+            li.className = 'bg-white p-4 rounded shadow-md flex justify-between items-center animate__animated animate__fadeIn';
+            addTodoToList(todo);
+        }
+
+        async function deleteTodo(id, li) {
+            const response = await fetch(`/todos/${id}`, {
+                method: 'DELETE'
+            });
+
+            if (response.ok) {
+                li.classList.add('animate__fadeOut');
+                li.addEventListener('animationend', () => li.remove());
+            } else {
+                console.error('Failed to delete todo');
+            }
         }
     </script>
 </body>

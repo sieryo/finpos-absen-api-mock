@@ -1,7 +1,7 @@
 package models
 
 import (
-	"todo-list/config"
+	"finpos-absen-api/config"
 )
 
 func GetTodos() ([]config.Todo, error) {
