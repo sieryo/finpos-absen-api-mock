@@ -48,7 +48,8 @@ type Users struct {
 	CreatedAt     time.Time      `json:"created_at"`
 	UpdatedAt     time.Time      `json:"updated_at"`
 	DeletedAt     gorm.DeletedAt `gorm:"index"`
-	Attendances   []Attendances  `json:"attendances" gorm:"foreignKey:UserID"`
+	Absensi       []Absensi      `json:"absensi" gorm:"foreignKey:UserID"`
+	AbsensiWFH    []AbsensiWFH   `json:"absensi_wfh" gorm:"foreignKey:UserID"`
 }
 
 type UserInput struct {

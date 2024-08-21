@@ -18,11 +18,8 @@ func AuthRoutes(r *gin.Engine) {
 func AttendanceRoutes(r *gin.Engine) {
 	attendanceRoutes := r.Group("/attendance", middlewares.CheckAuth)
 	{
-		attendanceRoutes.GET("/retrieve", controllers.GetCurrentUserAttendances)
-		attendanceRoutes.GET("/daily", controllers.GetCurrentDayUserAttendance)
 		attendanceRoutes.POST("/clockin", controllers.HandleClockIn)
-		attendanceRoutes.POST("/update_clockin", controllers.UpdateClockInAttendance)
-		attendanceRoutes.POST("/clockout", controllers.UpdateClockOutAttendance)
+		attendanceRoutes.POST("/clockout", controllers.HandleClockOut)
 	}
 }
 
