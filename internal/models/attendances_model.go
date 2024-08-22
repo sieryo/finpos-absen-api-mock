@@ -48,7 +48,7 @@ func (AbsensiWFH) TableName() string {
 }
 
 type AbsensiRequest struct {
-	Tipe       uint64                `form:"tipe"`
+	Tipe       uint64                `form:"tipe" binding:"required"`
 	Foto       *multipart.FileHeader `form:"foto" binding:"required"`
 	Confidence *string               `form:"confidence" binding:"required"`
 	Latitude   *string               `form:"latitude"`

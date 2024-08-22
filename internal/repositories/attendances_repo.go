@@ -11,6 +11,42 @@ import (
 	"gorm.io/gorm"
 )
 
+func GetTodayAbsensi(userID string) (map[string]interface{}, error) {
+	var absensi models.Absensi
+	var absensiWfh models.AbsensiWFH
+
+	// Get today's date
+	today := time.Now().Format("2006-01-02")
+
+	// Query the Absensi table for today's attendance
+	err := config.DB.Where("user_id = ? AND tanggal = ?", userID, today).First(&absensi).Error
+	if err != nil && err != gorm.ErrRecordNotFound {
+		return nil, err
+	}
+
+	// Query the AbsensiWFH table for today's attendance
+	err = config.DB.Where("user_id = ? AND tanggal = ?", userID, today).First(&absensiWfh).Error
+	if err != nil && err != gorm.ErrRecordNotFound {
+		return nil, err
+	}
+
+	// Create the response map
+	response := map[string]interface{}{
+		"absensi":    nil,
+		"absensiWfh": nil,
+	}
+
+	if absensi.ID != "" {
+		response["absensi"] = absensi
+	}
+
+	if absensiWfh.ID != "" {
+		response["absensiWfh"] = absensiWfh
+	}
+
+	return response, nil
+}
+
 func HandleClockIn(userID string, tipe uint64, foto string, confidence float64, latitude string, longitude string) error {
 	today := time.Now().Format("2006-01-02")
 	now := time.Now().Truncate(time.Second)

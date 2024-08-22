@@ -42,6 +42,7 @@ func main() {
 	routes.AuthRoutes(r)
 	routes.AttendanceRoutes(r)
 	routes.ProfileRoutes(r)
+	routes.StaticRoutes(r) // Tambahkan ini untuk melayani gambar
 
 	r.Run()
 }

@@ -18,6 +18,7 @@ func AuthRoutes(r *gin.Engine) {
 func AttendanceRoutes(r *gin.Engine) {
 	attendanceRoutes := r.Group("/attendance", middlewares.CheckAuth)
 	{
+		attendanceRoutes.GET("/today", controllers.GetTodayAbsensi)
 		attendanceRoutes.POST("/clockin", controllers.HandleClockIn)
 		attendanceRoutes.POST("/clockout", controllers.HandleClockOut)
 	}
@@ -28,4 +29,9 @@ func ProfileRoutes(r *gin.Engine) {
 	{
 		profileRoutes.GET("/", controllers.GetUserProfile)
 	}
+}
+
+func StaticRoutes(r *gin.Engine) {
+	// Melayani file statis dari folder storage/image
+	r.Static("/storage/image", "./storage/image")
 }

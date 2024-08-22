@@ -13,7 +13,29 @@ import (
 	"github.com/google/uuid"
 )
 
+func GetTodayAbsensi(c *gin.Context) {
+	user, exists := c.Get("currentUser")
+
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not found in context"})
+		c.AbortWithStatus(http.StatusUnauthorized)
+		return
+	}
+	currentUser, _ := user.(models.Users)
+
+	absensiData, err := repositories.GetTodayAbsensi(currentUser.ID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve attendance data"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"data": absensiData,
+	})
+}
+
 func HandleClockIn(c *gin.Context) {
+
 	user, exists := c.Get("currentUser")
 	var input models.AbsensiRequest
 
@@ -24,9 +46,8 @@ func HandleClockIn(c *gin.Context) {
 	}
 	currentUser, _ := user.(models.Users)
 
-	fmt.Println("User", currentUser.ID)
-
 	if err := c.ShouldBind(&input); err != nil {
+		fmt.Printf("Kesini! %s", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Bad Request"})
 		return
 	}
