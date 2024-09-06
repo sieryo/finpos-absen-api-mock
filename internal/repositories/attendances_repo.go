@@ -18,14 +18,18 @@ func GetTodayAbsensi(userID string) (map[string]interface{}, error) {
 	// Get today's date
 	today := time.Now().Format("2006-01-02")
 
-	// Query the Absensi table for today's attendance
-	err := config.DB.Where("user_id = ? AND tanggal = ?", userID, today).First(&absensi).Error
+	// Query the Absensi table for today's attendance with related Tipe
+	err := config.DB.Where("user_id = ? AND tanggal = ?", userID, today).
+		Preload("Tipe"). // Preload the Tipe data
+		First(&absensi).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
 		return nil, err
 	}
 
-	// Query the AbsensiWFH table for today's attendance
-	err = config.DB.Where("user_id = ? AND tanggal = ?", userID, today).First(&absensiWfh).Error
+	// Query the AbsensiWFH table for today's attendance with related Tipe
+	err = config.DB.Where("user_id = ? AND tanggal = ?", userID, today).
+		Preload("Tipe"). // Preload the Tipe data for AbsensiWFH as well
+		First(&absensiWfh).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
 		return nil, err
 	}
@@ -47,7 +51,7 @@ func GetTodayAbsensi(userID string) (map[string]interface{}, error) {
 	return response, nil
 }
 
-func HandleClockIn(userID string, tipe uint64, foto string, confidence float64, latitude string, longitude string) error {
+func HandleClockIn(userID string, tipe uint64, foto string, confidence float64, latitude string, longitude string, alasan string) error {
 	today := time.Now().Format("2006-01-02")
 	now := time.Now().Truncate(time.Second)
 
@@ -69,12 +73,13 @@ func HandleClockIn(userID string, tipe uint64, foto string, confidence float64, 
 				ID:         uuid.New().String(),
 				UserID:     userID,
 				Tanggal:    now,
-				Tipe:       tipe,
+				TipeID:     tipe,
 				Clockin:    &now,
 				Foto:       &foto,
 				Confidence: &confidence,
 				Latitude:   &latitude,
 				Longitude:  &longitude,
+				Alasan:     &alasan,
 			},
 		}
 		if err := config.DB.Create(&absensi).Error; err != nil {
@@ -99,12 +104,13 @@ func HandleClockIn(userID string, tipe uint64, foto string, confidence float64, 
 				ID:         uuid.New().String(),
 				UserID:     userID,
 				Tanggal:    now,
-				Tipe:       tipe,
+				TipeID:     tipe,
 				Clockin:    &now,
 				Foto:       &foto,
 				Confidence: &confidence,
 				Latitude:   &latitude,
 				Longitude:  &longitude,
+				Alasan:     &alasan,
 			},
 		}
 		if err := config.DB.Create(&absensiWFH).Error; err != nil {
@@ -132,12 +138,13 @@ func HandleClockIn(userID string, tipe uint64, foto string, confidence float64, 
 					ID:         uuid.New().String(),
 					UserID:     userID,
 					Tanggal:    now,
-					Tipe:       tipe,
+					TipeID:     tipe,
 					Clockin:    &now,
 					Foto:       &foto,
 					Confidence: &confidence,
 					Latitude:   &latitude,
 					Longitude:  &longitude,
+					Alasan:     &alasan,
 				},
 			}
 			config.DB.Create(&absensi)
@@ -146,7 +153,7 @@ func HandleClockIn(userID string, tipe uint64, foto string, confidence float64, 
 					ID:      uuid.New().String(),
 					UserID:  userID,
 					Tanggal: now,
-					Tipe:    tipe,
+					TipeID:  tipe,
 				},
 			}
 			if err := config.DB.Create(&absensiWFH).Error; err != nil {
@@ -182,7 +189,7 @@ func HandleClockIn(userID string, tipe uint64, foto string, confidence float64, 
 					ID:      uuid.New().String(),
 					UserID:  userID,
 					Tanggal: now,
-					Tipe:    tipe,
+					TipeID:  tipe,
 				},
 			}
 			config.DB.Create(&absensi)
@@ -191,12 +198,13 @@ func HandleClockIn(userID string, tipe uint64, foto string, confidence float64, 
 					ID:         uuid.New().String(),
 					UserID:     userID,
 					Tanggal:    now,
-					Tipe:       tipe,
+					TipeID:     tipe,
 					Clockin:    &now,
 					Foto:       &foto,
 					Confidence: &confidence,
 					Latitude:   &latitude,
 					Longitude:  &longitude,
+					Alasan:     &alasan,
 				},
 			}
 			if err := config.DB.Create(&absensiWFH).Error; err != nil {
@@ -217,7 +225,7 @@ func HandleClockIn(userID string, tipe uint64, foto string, confidence float64, 
 	}
 }
 
-func HandleClockOut(userID string, tipe uint64, foto string, confidence float64, latitude string, longitude string) error {
+func HandleClockOut(userID string, tipe uint64, foto string, confidence float64, latitude string, longitude string, alasan string) error {
 	today := time.Now().Format("2006-01-02")
 	now := time.Now().Truncate(time.Second)
 

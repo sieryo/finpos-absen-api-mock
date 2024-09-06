@@ -12,7 +12,8 @@ type AbsensiBase struct {
 	UserID        string         `json:"user_id"`
 	User          Users          `json:"users" gorm:"foreignKey:UserID"`
 	Tanggal       time.Time      `json:"tanggal" gorm:"type:date"`
-	Tipe          uint64         `json:"tipe"`
+	TipeID        uint64         `json:"tipe_id"`
+	Tipe          Tipe           `json:"tipe" gorm:"foreignKey:TipeID"`
 	Clockin       *time.Time     `json:"clockin" gorm:"type:datetime(0)"`
 	Clockout      *time.Time     `json:"clockout" gorm:"type:datetime(0)"`
 	Foto          *string        `json:"foto" gorm:"type:varchar(100)"`
@@ -53,6 +54,7 @@ type AbsensiRequest struct {
 	Confidence *string               `form:"confidence" binding:"required"`
 	Latitude   *string               `form:"latitude"`
 	Longitude  *string               `form:"longitude"`
+	Alasan     *string               `form:"alasan"`
 }
 
 type Tipe struct {

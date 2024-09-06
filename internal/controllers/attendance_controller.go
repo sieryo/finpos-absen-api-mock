@@ -84,7 +84,7 @@ func HandleClockIn(c *gin.Context) {
 
 	confidence := float64(confidenceFloat)
 
-	if err := repositories.HandleClockIn(currentUser.ID, input.Tipe, fileName, confidence, *input.Latitude, *input.Longitude); err != nil {
+	if err := repositories.HandleClockIn(currentUser.ID, input.Tipe, fileName, confidence, *input.Latitude, *input.Longitude, *input.Alasan); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -142,7 +142,7 @@ func HandleClockOut(c *gin.Context) {
 
 	confidence := float64(confidenceFloat)
 
-	if err := repositories.HandleClockOut(currentUser.ID, input.Tipe, fileName, confidence, *input.Latitude, *input.Longitude); err != nil {
+	if err := repositories.HandleClockOut(currentUser.ID, input.Tipe, fileName, confidence, *input.Latitude, *input.Longitude, *input.Alasan); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

@@ -12,8 +12,8 @@ func Init() {
 func SeedTipe() error {
 	Init()
 	types := []models.Tipe{
-		{Tipe: "Hadir"},
-		{Tipe: "Full WFH"},
+		{Tipe: "Kantor"},
+		{Tipe: "WFH"},
 		{Tipe: "Dinas Luar"},
 		{Tipe: "Lembur"},
 		{Tipe: "Piket"},

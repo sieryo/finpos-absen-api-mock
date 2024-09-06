@@ -2,3 +2,4 @@ vendor
 *.exe
 *.exe~
 .env
+storage/image
