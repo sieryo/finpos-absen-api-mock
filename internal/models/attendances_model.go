@@ -1,36 +1,70 @@
 package models
 
 import (
+	"mime/multipart"
 	"time"
 
 	"gorm.io/gorm"
 )
 
-type AttendanceType string
-
-const (
-	WFH        AttendanceType = "WFH"
-	Kantor     AttendanceType = "Kantor"
-	WFH_Kantor AttendanceType = "WFH_Kantor"
-	Lembur     AttendanceType = "Lembur"
-	Dinas_Luar AttendanceType = "Dinas_Luar"
-)
-
-type Attendances struct {
-	ID             string         `json:"id" gorm:"type:char(36);primaryKey;default:(uuid())"`
-	UserID         string         `json:"user_id"`
-	User           Users          `json:"users" gorm:"foreignKey:UserID"`
-	Date           time.Time      `json:"date"`
-	AttendanceType AttendanceType `json:"attendance_type"`
-	ClockInWFH     *time.Time     `json:"clockin_wfh"`
-	ClockOutWFH    *time.Time     `json:"clockout_wfh"`
-	ClockInKantor  *time.Time     `json:"clockin_kantor"`
-	ClockOutKantor *time.Time     `json:"clockout_kantor"`
-	CreatedAt      time.Time      `json:"created_at"`
-	UpdatedAt      time.Time      `json:"updated_at"`
-	DeletedAt      gorm.DeletedAt `gorm:"index"`
+type AbsensiBase struct {
+	ID            string         `json:"id" gorm:"type:char(36);primaryKey"`
+	UserID        string         `json:"user_id"`
+	User          Users          `json:"users" gorm:"foreignKey:UserID"`
+	Tanggal       time.Time      `json:"tanggal" gorm:"type:date"`
+	TipeID        uint64         `json:"tipe_id"`
+	Tipe          Tipe           `json:"tipe" gorm:"foreignKey:TipeID"`
+	Clockin       *time.Time     `json:"clockin" gorm:"type:datetime(0)"`
+	Clockout      *time.Time     `json:"clockout" gorm:"type:datetime(0)"`
+	Foto          *string        `json:"foto" gorm:"type:varchar(100)"`
+	Confidence    *float64       `json:"confidence" gorm:"type:double"`
+	Emotion       *string        `json:"emotion" gorm:"type:varchar(20)"`
+	FotoOut       *string        `json:"foto_out" gorm:"type:varchar(100)"`
+	ConfidenceOut *float64       `json:"confidence_out" gorm:"type:double"`
+	EmotionOut    *string        `json:"emotion_out" gorm:"type:varchar(20)"`
+	Alasan        *string        `json:"alasan" gorm:"type:text"`
+	Latitude      *string        `json:"latitude" gorm:"type:varchar(100)"`
+	Longitude     *string        `json:"longitude" gorm:"type:varchar(100)"`
+	LatitudeOut   *string        `json:"latitude_out" gorm:"type:varchar(100)"`
+	LongitudeOut  *string        `json:"longitude_out" gorm:"type:varchar(100)"`
+	CreatedAt     time.Time      `json:"created_at"`
+	UpdatedAt     time.Time      `json:"updated_at"`
+	DeletedAt     gorm.DeletedAt `gorm:"index"`
 }
 
-type AttendancesCreate struct {
-	AttendanceType AttendanceType `json:"attendance_type"`
+type Absensi struct {
+	AbsensiBase
+}
+
+func (Absensi) TableName() string {
+	return "absensi"
+}
+
+type AbsensiWFH struct {
+	AbsensiBase
+}
+
+func (AbsensiWFH) TableName() string {
+	return "absensi_wfh"
+}
+
+type AbsensiRequest struct {
+	Tipe       uint64                `form:"tipe" binding:"required"`
+	Foto       *multipart.FileHeader `form:"foto" binding:"required"`
+	Confidence *string               `form:"confidence" binding:"required"`
+	Latitude   *string               `form:"latitude"`
+	Longitude  *string               `form:"longitude"`
+	Alasan     *string               `form:"alasan"`
+}
+
+type Tipe struct {
+	ID        uint64         `json:"id" gorm:"type:bigint;primaryKey;autoIncrement"`
+	Tipe      string         `json:"tipe"`
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index"`
+}
+
+func (Tipe) TableName() string {
+	return "tipe"
 }

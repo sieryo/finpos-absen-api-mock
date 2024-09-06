@@ -10,7 +10,7 @@ go install github.com/githubnemo/CompileDaemon
 ## Jalankan CompileDaemon
 
 ```bash
-CompileDaemon -command="./your-project-directory"
+CompileDaemon -command="./finpos-absen-api"
 ```
 
 

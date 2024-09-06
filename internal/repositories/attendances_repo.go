@@ -7,109 +7,355 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
-func GetAttendanceById(id string) (models.Attendances, error) {
-	var attendance models.Attendances
+func GetTodayAbsensi(userID string) (map[string]interface{}, error) {
+	var absensi models.Absensi
+	var absensiWfh models.AbsensiWFH
 
-	result := config.DB.First(&attendance, id)
+	// Get today's date
+	today := time.Now().Format("2006-01-02")
 
-	if result.Error != nil {
-		return models.Attendances{}, result.Error
+	// Query the Absensi table for today's attendance with related Tipe
+	err := config.DB.Where("user_id = ? AND tanggal = ?", userID, today).
+		Preload("Tipe"). // Preload the Tipe data
+		First(&absensi).Error
+	if err != nil && err != gorm.ErrRecordNotFound {
+		return nil, err
 	}
 
-	return attendance, nil
+	// Query the AbsensiWFH table for today's attendance with related Tipe
+	err = config.DB.Where("user_id = ? AND tanggal = ?", userID, today).
+		Preload("Tipe"). // Preload the Tipe data for AbsensiWFH as well
+		First(&absensiWfh).Error
+	if err != nil && err != gorm.ErrRecordNotFound {
+		return nil, err
+	}
+
+	// Create the response map
+	response := map[string]interface{}{
+		"absensi":    nil,
+		"absensiWfh": nil,
+	}
+
+	if absensi.ID != "" {
+		response["absensi"] = absensi
+	}
+
+	if absensiWfh.ID != "" {
+		response["absensiWfh"] = absensiWfh
+	}
+
+	return response, nil
 }
 
-func CreateAttendance(userID string, at models.AttendanceType, clockIn time.Time, clockOut *time.Time) (models.Attendances, error) {
-	var existingAttendance models.Attendances
+func HandleClockIn(userID string, tipe uint64, foto string, confidence float64, latitude string, longitude string, alasan string) error {
+	today := time.Now().Format("2006-01-02")
+	now := time.Now().Truncate(time.Second)
 
-	result := config.DB.Where("user_id = ? AND DATE(date) = ?", userID, time.Now().Format("2006-01-02")).First(&existingAttendance)
+	switch tipe {
+	case 1, 3, 4, 5, 10:
+		// Masuk kantor, data ke absensi biasa
+		var existingAttendance models.Absensi
 
-	if result.Error == nil {
-		return models.Attendances{}, fmt.Errorf("attendance already recorded for today")
-	} else if !errors.Is(result.Error, gorm.ErrRecordNotFound) {
-		return models.Attendances{}, fmt.Errorf("attendance already recorded for today")
-	}
+		result := config.DB.Where("user_id = ? AND DATE(tanggal) = ?", userID, today).First(&existingAttendance)
 
-	attendance := models.Attendances{
-		UserID:         userID,
-		Date:           time.Now(),
-		AttendanceType: at,
-	}
-
-	switch at {
-	case models.WFH, models.WFH_Kantor:
-		attendance.ClockInWFH = &clockIn
-		if clockOut != nil {
-			attendance.ClockOutWFH = clockOut
+		if result.Error == nil {
+			return fmt.Errorf("attendance already recorded for today")
+		} else if !errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return fmt.Errorf("attendance already recorded for today")
 		}
-	case models.Kantor, models.Lembur, models.Dinas_Luar:
-		attendance.ClockInKantor = &clockIn
-		if clockOut != nil {
-			attendance.ClockOutKantor = clockOut
+
+		absensi := models.Absensi{
+			AbsensiBase: models.AbsensiBase{
+				ID:         uuid.New().String(),
+				UserID:     userID,
+				Tanggal:    now,
+				TipeID:     tipe,
+				Clockin:    &now,
+				Foto:       &foto,
+				Confidence: &confidence,
+				Latitude:   &latitude,
+				Longitude:  &longitude,
+				Alasan:     &alasan,
+			},
 		}
-	}
+		if err := config.DB.Create(&absensi).Error; err != nil {
+			return err
+		}
 
-	if err := config.DB.Create(&attendance).Error; err != nil {
-		return models.Attendances{}, err
-	}
+		return nil
+	case 2:
+		// WFH
+		var existingAttendance models.AbsensiWFH
 
-	return attendance, nil
+		result := config.DB.Where("user_id = ? AND DATE(tanggal) = ?", userID, today).First(&existingAttendance)
+
+		if result.Error == nil {
+			return fmt.Errorf("attendance already recorded for today")
+		} else if !errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return fmt.Errorf("attendance already recorded for today")
+		}
+
+		absensiWFH := models.AbsensiWFH{
+			AbsensiBase: models.AbsensiBase{
+				ID:         uuid.New().String(),
+				UserID:     userID,
+				Tanggal:    now,
+				TipeID:     tipe,
+				Clockin:    &now,
+				Foto:       &foto,
+				Confidence: &confidence,
+				Latitude:   &latitude,
+				Longitude:  &longitude,
+				Alasan:     &alasan,
+			},
+		}
+		if err := config.DB.Create(&absensiWFH).Error; err != nil {
+			return err
+		}
+		return nil
+
+	case 6:
+		// Masuk Kantor + WFH
+		var absensiWFH models.AbsensiWFH
+
+		result := config.DB.Where("user_id = ? AND DATE(tanggal) = ?", userID, today).First(&absensiWFH)
+
+		if result.Error != nil && result.Error != gorm.ErrRecordNotFound {
+			return result.Error
+		}
+
+		if absensiWFH.Clockin != nil {
+			return fmt.Errorf("attendance already recorded for today")
+		}
+
+		if result.Error == gorm.ErrRecordNotFound {
+			absensi := models.Absensi{
+				AbsensiBase: models.AbsensiBase{
+					ID:         uuid.New().String(),
+					UserID:     userID,
+					Tanggal:    now,
+					TipeID:     tipe,
+					Clockin:    &now,
+					Foto:       &foto,
+					Confidence: &confidence,
+					Latitude:   &latitude,
+					Longitude:  &longitude,
+					Alasan:     &alasan,
+				},
+			}
+			config.DB.Create(&absensi)
+			absensiWFH := models.AbsensiWFH{
+				AbsensiBase: models.AbsensiBase{
+					ID:      uuid.New().String(),
+					UserID:  userID,
+					Tanggal: now,
+					TipeID:  tipe,
+				},
+			}
+			if err := config.DB.Create(&absensiWFH).Error; err != nil {
+				return err
+			}
+
+			return nil
+		}
+		absensiWFH.Clockin = &now
+		absensiWFH.Foto = &foto
+		absensiWFH.Confidence = &confidence
+		absensiWFH.Latitude = &latitude
+		absensiWFH.Longitude = &longitude
+
+		return config.DB.Save(&absensiWFH).Error
+	case 7:
+		// WFH + Masuk Kantor
+		var absensi models.Absensi
+
+		result := config.DB.Where("user_id = ? AND DATE(tanggal) = ?", userID, today).First(&absensi)
+
+		if result.Error != nil && result.Error != gorm.ErrRecordNotFound {
+			return result.Error
+		}
+
+		if absensi.Clockin != nil {
+			return fmt.Errorf("attendance already recorded for today")
+		}
+
+		if result.Error == gorm.ErrRecordNotFound {
+			absensi := models.Absensi{
+				AbsensiBase: models.AbsensiBase{
+					ID:      uuid.New().String(),
+					UserID:  userID,
+					Tanggal: now,
+					TipeID:  tipe,
+				},
+			}
+			config.DB.Create(&absensi)
+			absensiWFH := models.AbsensiWFH{
+				AbsensiBase: models.AbsensiBase{
+					ID:         uuid.New().String(),
+					UserID:     userID,
+					Tanggal:    now,
+					TipeID:     tipe,
+					Clockin:    &now,
+					Foto:       &foto,
+					Confidence: &confidence,
+					Latitude:   &latitude,
+					Longitude:  &longitude,
+					Alasan:     &alasan,
+				},
+			}
+			if err := config.DB.Create(&absensiWFH).Error; err != nil {
+				return err
+			}
+
+			return nil
+		}
+		absensi.Clockin = &now
+		absensi.Foto = &foto
+		absensi.Confidence = &confidence
+		absensi.Latitude = &latitude
+		absensi.Longitude = &longitude
+
+		return config.DB.Save(&absensi).Error
+	default:
+		return fmt.Errorf("belum diimplementasikan")
+	}
 }
 
-func UpdateClockInAttendance(userID string, clockIn time.Time) (string, error) {
-	var attendance models.Attendances
+func HandleClockOut(userID string, tipe uint64, foto string, confidence float64, latitude string, longitude string, alasan string) error {
+	today := time.Now().Format("2006-01-02")
+	now := time.Now().Truncate(time.Second)
 
-	result := config.DB.Where("user_id = ? AND DATE(date) = ?", userID, time.Now().Format("2006-01-02")).First(&attendance)
-	if result.Error != nil {
-		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			return "", fmt.Errorf("attendance record not found for today")
+	switch tipe {
+	case 1, 3, 4, 5, 10:
+		// Masuk kantor, data ke absensi biasa
+		var existingAttendance models.Absensi
+
+		result := config.DB.Where("user_id = ? AND DATE(tanggal) = ?", userID, today).First(&existingAttendance)
+
+		if result.Error != nil {
+			return result.Error
 		}
-		return "", result.Error
-	}
 
-	if attendance.ClockInKantor != nil {
-		return "Attendance already recorded, cannot update clock-in time", nil
-	}
+		existingAttendance.Clockout = &now
+		existingAttendance.FotoOut = &foto
+		existingAttendance.ConfidenceOut = &confidence
+		existingAttendance.LatitudeOut = &latitude
+		existingAttendance.LongitudeOut = &longitude
 
-	result = config.DB.Model(&attendance).Update("clock_in_kantor", &clockIn)
-	if result.Error != nil {
-		return "", result.Error
-	}
-
-	return "", nil
-}
-
-func UpdateClockOutAttendance(userID string, clockOut time.Time) (string, error) {
-	var attendance models.Attendances
-
-	result := config.DB.Where("user_id = ? AND DATE(date) = ?", userID, time.Now().Format("2006-01-02")).First(&attendance)
-	if result.Error != nil {
-		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			return "", fmt.Errorf("attendance record not found for today")
+		if err := config.DB.Save(&existingAttendance).Error; err != nil {
+			return err
 		}
-		return "", result.Error
-	}
 
-	if attendance.ClockOutKantor != nil || attendance.ClockOutWFH != nil {
-		return "Attendance already recorded, cannot update clock-out time", nil
+		return nil
+	case 2:
+		// WFH
+		var existingAttendance models.AbsensiWFH
 
-	}
+		result := config.DB.Where("user_id = ? AND DATE(tanggal) = ?", userID, today).First(&existingAttendance)
 
-	switch attendance.AttendanceType {
-	case models.WFH, models.WFH_Kantor:
-		if attendance.ClockOutWFH != nil {
-			attendance.ClockOutKantor = &clockOut
+		if result.Error != nil {
+			return result.Error
+		}
+
+		existingAttendance.Clockout = &now
+		existingAttendance.FotoOut = &foto
+		existingAttendance.ConfidenceOut = &confidence
+		existingAttendance.LatitudeOut = &latitude
+		existingAttendance.LongitudeOut = &longitude
+
+		if err := config.DB.Save(&existingAttendance).Error; err != nil {
+			return err
+		}
+
+		return nil
+
+	case 6:
+		// Masuk Kantor + WFH
+		var absensi models.Absensi
+		var absensiWFH models.AbsensiWFH
+
+		result := config.DB.Where("user_id = ? AND DATE(tanggal) = ?", userID, today).First(&absensi)
+
+		if result.Error != nil {
+			return result.Error
+		}
+
+		result = config.DB.Where("user_id = ? AND DATE(tanggal) = ?", userID, today).First(&absensiWFH)
+
+		if result.Error != nil {
+			return result.Error
+		}
+
+		if absensi.Clockout == nil {
+			absensi.Clockout = &now
+			absensi.FotoOut = &foto
+			absensi.ConfidenceOut = &confidence
+			absensi.LatitudeOut = &latitude
+			absensi.LongitudeOut = &longitude
+			if err := config.DB.Save(&absensi).Error; err != nil {
+				return err
+			}
+
+			return nil
 		} else {
-			attendance.ClockOutWFH = &clockOut
+			absensiWFH.Clockout = &now
+			absensiWFH.FotoOut = &foto
+			absensiWFH.ConfidenceOut = &confidence
+			absensiWFH.LatitudeOut = &latitude
+			absensiWFH.LongitudeOut = &longitude
+
+			if err := config.DB.Save(&absensiWFH).Error; err != nil {
+				return err
+			}
+
+			return nil
+		}
+	case 7:
+		// WFH + Masuk Kantor
+		var absensi models.Absensi
+		var absensiWFH models.AbsensiWFH
+
+		result := config.DB.Where("user_id = ? AND DATE(tanggal) = ?", userID, today).First(&absensi)
+
+		if result.Error != nil {
+			return result.Error
+		}
+
+		result = config.DB.Where("user_id = ? AND DATE(tanggal) = ?", userID, today).First(&absensiWFH)
+
+		if result.Error != nil {
+			return result.Error
+		}
+
+		if absensiWFH.Clockout == nil {
+			absensiWFH.Clockout = &now
+			absensiWFH.FotoOut = &foto
+			absensiWFH.ConfidenceOut = &confidence
+			absensiWFH.LatitudeOut = &latitude
+			absensiWFH.LongitudeOut = &longitude
+			if err := config.DB.Save(&absensiWFH).Error; err != nil {
+				return err
+			}
+
+			return nil
+		} else {
+			absensi.Clockout = &now
+			absensi.FotoOut = &foto
+			absensi.ConfidenceOut = &confidence
+			absensi.LatitudeOut = &latitude
+			absensi.LongitudeOut = &longitude
+
+			if err := config.DB.Save(&absensi).Error; err != nil {
+				return err
+			}
+
+			return nil
 		}
 	default:
-		attendance.ClockOutKantor = &clockOut
+		return fmt.Errorf("belum diimplementasikan")
 	}
-
-	config.DB.Save(&attendance)
-
-	return "", nil
 }

@@ -1,0 +1,56 @@
+package models
+
+import (
+	"time"
+
+	"gorm.io/gorm"
+)
+
+type AttendanceType string
+
+const (
+	WFH        AttendanceType = "WFH"
+	Kantor     AttendanceType = "Kantor"
+	WFH_Kantor AttendanceType = "WFH_Kantor"
+	Lembur     AttendanceType = "Lembur"
+	Dinas_Luar AttendanceType = "Dinas_Luar"
+)
+
+type Absensi struct {
+	AbsenID       string         `json:"absen_id" gorm:"type:char(36);primaryKey;default:(uuid())"`
+	UserID        string         `json:"user_id"`
+	User          Users          `json:"users" gorm:"foreignKey:UserID"`
+	Tanggal       time.Time      `json:"tanggal"`
+	Tipe          AttendanceType `json:"tipe"`
+	ClockIn       *time.Time     `json:"clockin"`
+	ClockOut      *time.Time     `json:"clockout"`
+	Foto          *string        `json:"foto"`
+	Confidence    *float32       `json:"confidence"`
+	Emotion       *string        `json:"emotion"`
+	FotoOut       *string        `json:"foto_out"`
+	ConfidenceOut *float32       `json:"confidence_out"`
+	Emotion_Out   *float32       `json:"emotion_out"`
+	Alasan        *string        `json:"alasan"`
+	Latitude      *string        `json:"latitude"`
+	Longitude     *string        `json:"longitude"`
+	LatitudeOut   *string        `json:"latitude_out"`
+	LongitudeOut  *string        `json:"longitude_out"`
+	CreatedAt     time.Time      `json:"created_at"`
+	UpdatedAt     time.Time      `json:"updated_at"`
+	DeletedAt     gorm.DeletedAt `gorm:"index"`
+}
+
+type AbsensiCreate struct {
+	Tipe AttendanceType `json:"tipe" binding:"required"`
+}
+
+// Struct untuk edit attendance
+type AbsensiEditInput struct {
+	ID             string         `json:"id" binding:"required"`
+	Date           *time.Time     `json:"date"`
+	AttendanceType AttendanceType `json:"attendance_type" binding:"required"`
+	ClockInWFH     *time.Time     `json:"clockin_wfh"`
+	ClockOutWFH    *time.Time     `json:"clockout_wfh"`
+	ClockInKantor  *time.Time     `json:"clockin_kantor"`
+	ClockOutKantor *time.Time     `json:"clockout_kantor"`
+}
